@@ -16,7 +16,7 @@ yarn add svelte-transition-extras
 
 ## Example
 
-```svelte
+```javascript
 // svelte.config.js
 import escape from 'svelte-preprocess-escape'
 import preprocess from 'svelte-preprocess'
@@ -32,8 +32,10 @@ const config = {
   },
   ...
 }
+```
 
-// component.svelte
+```svelte
+<!-- component.svelte -->
 <h1>Regular Old Markup</h1>
 
 <pre>
