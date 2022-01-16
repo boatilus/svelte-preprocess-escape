@@ -19,11 +19,11 @@
     "@types/sax": "^1.2.4",
     "@typescript-eslint/eslint-plugin": "^4.31.1",
     "@typescript-eslint/parser": "^4.31.1",
+    "dedent": "^0.7.0",
     "eslint": "^7.32.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-svelte3": "^3.2.1",
-    "prettier": "^2.4.1",
-    "prettier-plugin-svelte": "^2.4.0",
+    "sass": "^1.48.0",
     "svelte": "^3.44.0",
     "svelte-check": "^2.2.6",
     "svelte-preprocess": "^4.9.4",
@@ -33,7 +33,7 @@
   },
   "type": "module",
   "dependencies": {
-    "sax": "^1.2.4",
-    "xmlbuilder": "^15.1.1"
+    "magic-string": "^0.25.7",
+    "sax": "^1.2.4"
   }
 }
