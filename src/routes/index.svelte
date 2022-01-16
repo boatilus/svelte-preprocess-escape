@@ -1,21 +1,19 @@
-<script lang="ts">
-  const echo = true
-</script>
+<div id="container">
+  <pre escape-content>
+    <div id="ex">Basic example</div>
+  </pre>
 
-<pre escape-content>
-  <style lang="scss">
-    a {
-      color: red;
-    }
-  </style>
-
-  <script lang="ts">
-    const f = () => {
-      return true
-    }
-  </script>
-</pre>
+  <pre escape-content lang="svelte">
+    <script lang="ts">
+      export let attr = 'cake'
+    </script>
+  </pre>
+</div>
 
 <p>Regular element</p>
 
-<pre escape-content>Next escaped element</pre>
+<style>
+  pre {
+    background: lightgray;
+  }
+</style>

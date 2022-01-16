@@ -1,10 +1,15 @@
 import MagicString from 'magic-string'
 import sax from 'sax'
-import builder from 'xmlbuilder'
 
-interface Options {
+export type HighlightFunc = (code: string, lang?: string) => string
+
+/** @ignore */
+export type FormatFunc = (code: string, filename?: string) => string
+
+export interface Options {
   tag: string
   extensions: string[]
+  highlighter?: HighlightFunc
 }
 
 const default_opts = {
@@ -17,6 +22,10 @@ const parser = sax.parser(false, {
   position: true
 })
 
+/**
+ * @see: https://github.com/tamino-martinius/node-ts-dedent (by Tamino Martinius)
+ * @license MIT
+ */
 const dedent = (
   templ: TemplateStringsArray | string,
   ...values: unknown[]
@@ -75,15 +84,36 @@ const dedent = (
   return string
 }
 
+// Used to map characters to HTML & JavaScript entities.
+const escapes = {
+  '`': '\\`',
+  "'": "\\'",
+  '/': '\\/',
+  '{': '\\{',
+  '}': '\\}'
+}
+
+// Used to match HTML entities and HTML characters.
+const unescaped_regex = new RegExp(/[`'/{}]/g)
+
+const escape = (s: string) =>
+  s.replace(unescaped_regex, (char) => escapes[char])
+
 /**
- * Wrap walks the AST generated from `content`, replacing any instances of
- * elements with the @escape attribute with HTML-escaped content.
+ * Walks the AST generated from `content`, replacing any instances of
+ * elements with the `tag` attribute with HTML-escaped content.
  *
  * @param content {string} - The component source code.
  * @param filename {string} - The component filename.
  */
-export const wrap = (tag: string, content: string, filename?: string) => {
-  const wrapped = '<div>' + content + '</div>' // sax expects exactly one element.
+export const wrap = (
+  tag: string,
+  content: string,
+  filename: string,
+  highlight?: HighlightFunc
+) => {
+  // sax expects exactly one element, so just wrap it.
+  const wrapped = '<div>' + content + '</div>'
   const s = new MagicString(content)
 
   // Start and end positions for replacement of re-built nodes.
@@ -95,6 +125,10 @@ export const wrap = (tag: string, content: string, filename?: string) => {
   let content_end: number
 
   let current_tag = null
+
+  // Tracks the current node's tag name, since sax either only uppercases
+  // or lowercases the tag names during parsing.
+  let tag_name = null
 
   parser.onerror = (err) => {
     throw err
@@ -108,6 +142,12 @@ export const wrap = (tag: string, content: string, filename?: string) => {
       }
 
       current_tag = parser.tag
+
+      tag_name = wrapped.substring(
+        parser.startTagPosition,
+        parser.startTagPosition + parser.tag.name.length
+      )
+
       start = parser.startTagPosition - 1 - 5
       content_start = parser.position
     }
@@ -115,30 +155,34 @@ export const wrap = (tag: string, content: string, filename?: string) => {
 
   parser.onclosetag = () => {
     if (parser.tag === current_tag) {
-      const { name, attributes } = parser.tag
+      let { name, attributes } = parser.tag
 
+      name = tag_name
+      tag_name = null
       current_tag = null
       end = parser.position - 5
       content_end = parser.startTagPosition - 1
 
-      const content = wrapped.substring(content_start, content_end)
+      let content = dedent(wrapped.substring(content_start, content_end))
 
-      const node = builder
-        .create(name, { keepNullAttributes: true })
-        .text(`{@html \`${dedent(content)}\` }`)
-
-      for (const attr in attributes) {
-        if (attr !== tag) {
-          if (attr === attributes[attr]) {
-            // sax decomposes single booleans.
-            attributes[attr] = 'true'
-          }
-
-          node.attribute(attr, attributes[attr])
+      let attrs = ''
+      for (const prop in attributes) {
+        if (prop !== tag) {
+          attrs += ` ${prop}="${attributes[prop]}"`
         }
       }
 
-      const node_string = node.toString()
+      let text = `{\`${escape(content)}\` }`
+
+      // If the component includes a `lang` specifier, first run the highlighter
+      // against the code before building the node.
+      const lang = attributes['lang']
+      if (highlight && typeof lang !== 'undefined') {
+        content = highlight(content, lang)
+        text = `{@html \`${escape(content)}\` }`
+      }
+
+      const node_string = `<${name}${attrs}>${text}</${name}>`
       s.overwrite(start, end, node_string)
     }
   }
@@ -166,10 +210,7 @@ const process = (opts: Options) => {
         }
       }
 
-      const wrapped = wrap(opts.tag, content, filename)
-      console.log(wrapped)
-
-      return wrapped
+      return wrap(opts.tag, content, filename, opts.highlighter)
     }
   }
 }
